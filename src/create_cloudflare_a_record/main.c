@@ -81,7 +81,7 @@ static int fetch_der(const char *host, const char *port, const char *path,
   // Enviar petición
   ssize_t total_sent = 0;
   while (total_sent < rq) {
-    ssize_t w = write(sockfd, request + total_sent, rq - total_sent);
+    ssize_t w = write(sockfd, request + total_sent, (size_t)(rq - total_sent));
     if (w <= 0) {
       perror("fetch_der: write");
       close(sockfd);
@@ -158,24 +158,138 @@ static int fetch_der(const char *host, const char *port, const char *path,
 }
 
 // ---------------------------------------------------------------------
-// 2) Inicializar BearSSL con trust anchor dinámica
+// 2) SSL Helper: manejo del motor SSL con la API correcta
 // ---------------------------------------------------------------------
-static void init_x509_from_der(br_x509_minimal_context *xc,
-                               const unsigned char *der, size_t der_len)
+static int ssl_write_all(br_ssl_engine_context *engine, int sockfd,
+                         const unsigned char *data, size_t len)
 {
-  // Crear trust anchor apuntando a DER en memoria
-  br_x509_trust_anchor anch;
-  anch.dn = (unsigned char *)der;
-  anch.dn_len = der_len;
-  anch.pkey = NULL;
-  anch.pkey_len = 0;
-  anch.flags = 0;
+  size_t total_sent = 0;
 
-  // Inicializar contexto X.509 mínimo:
-  br_x509_minimal_init(xc,
-                       &br_sha256_vtable,
-                       &anch,
-                       1);
+  while (total_sent < len) {
+    unsigned state = br_ssl_engine_current_state(engine);
+
+    // Enviar registros SSL si hay pendientes
+    if (state & BR_SSL_SENDREC) {
+      unsigned char *sendrec_buf;
+      size_t sendrec_len;
+
+      sendrec_buf = br_ssl_engine_sendrec_buf(engine, &sendrec_len);
+      if (sendrec_buf && sendrec_len > 0) {
+        ssize_t written = write(sockfd, sendrec_buf, sendrec_len);
+        if (written <= 0) {
+          fprintf(stderr, "Error escribiendo datos SSL al socket\n");
+          return -1;
+        }
+        br_ssl_engine_sendrec_ack(engine, (size_t)written);
+      }
+      continue;
+    }
+
+    // Escribir datos de aplicación
+    if (state & BR_SSL_SENDAPP) {
+      unsigned char *sendapp_buf;
+      size_t sendapp_len;
+
+      sendapp_buf = br_ssl_engine_sendapp_buf(engine, &sendapp_len);
+      if (sendapp_buf && sendapp_len > 0) {
+        size_t to_write = len - total_sent;
+        if (to_write > sendapp_len) to_write = sendapp_len;
+
+        memcpy(sendapp_buf, data + total_sent, to_write);
+        br_ssl_engine_sendapp_ack(engine, to_write);
+        total_sent += to_write;
+      }
+      continue;
+    }
+
+    if (state & BR_SSL_CLOSED) {
+      fprintf(stderr, "Conexión SSL cerrada durante escritura\n");
+      return -1;
+    }
+
+    // Estado inesperado
+    fprintf(stderr, "Estado SSL inesperado durante escritura: %u\n", state);
+    return -1;
+  }
+
+  // Asegurar que todos los datos se envíen
+  br_ssl_engine_flush(engine, 0);
+
+  return 0;
+}
+
+static int ssl_read_response(br_ssl_engine_context *engine, int sockfd)
+{
+  unsigned char sockbuf[BUFFER_SIZE];
+
+  for (;;) {
+    unsigned state = br_ssl_engine_current_state(engine);
+
+    // Leer datos del socket si el motor los necesita
+    if (state & BR_SSL_RECVREC) {
+      unsigned char *recvrec_buf;
+      size_t recvrec_len;
+
+      recvrec_buf = br_ssl_engine_recvrec_buf(engine, &recvrec_len);
+      if (recvrec_buf && recvrec_len > 0) {
+        ssize_t nread = read(sockfd, sockbuf, sizeof(sockbuf));
+        if (nread < 0) {
+          perror("Error leyendo del socket");
+          return -1;
+        }
+        if (nread == 0) {
+          // EOF
+          return 0;
+        }
+
+        size_t to_copy = (size_t)nread;
+        if (to_copy > recvrec_len) to_copy = recvrec_len;
+
+        memcpy(recvrec_buf, sockbuf, to_copy);
+        br_ssl_engine_recvrec_ack(engine, to_copy);
+      }
+      continue;
+    }
+
+    // Enviar registros SSL si hay pendientes
+    if (state & BR_SSL_SENDREC) {
+      unsigned char *sendrec_buf;
+      size_t sendrec_len;
+
+      sendrec_buf = br_ssl_engine_sendrec_buf(engine, &sendrec_len);
+      if (sendrec_buf && sendrec_len > 0) {
+        ssize_t written = write(sockfd, sendrec_buf, sendrec_len);
+        if (written <= 0) {
+          fprintf(stderr, "Error escribiendo datos SSL al socket\n");
+          return -1;
+        }
+        br_ssl_engine_sendrec_ack(engine, (size_t)written);
+      }
+      continue;
+    }
+
+    // Leer datos de aplicación si están disponibles
+    if (state & BR_SSL_RECVAPP) {
+      unsigned char *recvapp_buf;
+      size_t recvapp_len;
+
+      recvapp_buf = br_ssl_engine_recvapp_buf(engine, &recvapp_len);
+      if (recvapp_buf && recvapp_len > 0) {
+        // Escribir datos al stdout
+        fwrite(recvapp_buf, 1, recvapp_len, stdout);
+        br_ssl_engine_recvapp_ack(engine, recvapp_len);
+      }
+      continue;
+    }
+
+    if (state & BR_SSL_CLOSED) {
+      return 0;
+    }
+
+    // Estado inesperado
+    fprintf(stderr, "Estado SSL inesperado durante lectura: %u\n", state);
+    return -1;
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -280,16 +394,40 @@ int main(void) {
     return 1;
   }
 
-  // 3.6) Inicializar BearSSL TLS con DER dinámico
+  // 3.6) Inicializar BearSSL TLS
   br_ssl_client_context   sc;
   br_x509_minimal_context xc;
   unsigned char           iobuf[BR_SSL_BUFSIZE_BIDI];
 
-  init_x509_from_der(&xc, root_der, root_len);
-  br_ssl_client_init_full(&sc, &xc,
-                          (const br_x509_trust_anchor[]){ { (unsigned char*)root_der, root_len, NULL, 0, 0 } },
-                          1);
-  br_ssl_engine_set_buffers_bidi(&sc.eng, iobuf, sizeof(iobuf));
+  // Crear trust anchor desde el DER descargado
+  br_x509_trust_anchor anchor;
+  anchor.dn.data = root_der;
+  anchor.dn.len = root_len;
+  anchor.flags = BR_X509_TA_CA;
+
+  // Decodificar la clave pública del certificado DER
+  br_x509_decoder_context dc;
+  br_x509_decoder_init(&dc, 0, 0);
+  br_x509_decoder_push(&dc, root_der, root_len);
+
+  // Obtener la clave pública
+  br_x509_pkey *pkey = br_x509_decoder_get_pkey(&dc);
+  if (!pkey) {
+    fprintf(stderr, "Error: no se pudo extraer clave pública del certificado\n");
+    close(sockfd);
+    free(root_der);
+    return 1;
+  }
+  anchor.pkey = *pkey;
+
+  // Inicializar contexto X.509 mínimo
+  br_x509_minimal_init(&xc, &br_sha256_vtable, &anchor, 1);
+
+  // Inicializar contexto SSL cliente
+  br_ssl_client_init_full(&sc, &xc, &anchor, 1);
+
+  // Configurar buffers
+  br_ssl_engine_set_buffer(&sc.eng, iobuf, sizeof(iobuf), 1);
 
   // 3.7) Handshake TLS
   if (br_ssl_client_reset(&sc, "api.cloudflare.com", 0) != 0) {
@@ -299,75 +437,79 @@ int main(void) {
     return 1;
   }
 
-  // 3.8) Enviar petición cifrada
-  int total_sent = 0;
-  while (total_sent < req_len) {
-    int w = br_ssl_engine_write_app(&sc.eng,
-                                    (const unsigned char*)request + total_sent,
-                                    req_len - total_sent);
-    if (w < 0) {
-      fprintf(stderr, "Error br_ssl_engine_write_app: %d\n", w);
+  // 3.8) Realizar handshake inicial leyendo/escribiendo según el estado
+  for (;;) {
+    unsigned state = br_ssl_engine_current_state(&sc.eng);
+
+    if (state & BR_SSL_CLOSED) {
+      fprintf(stderr, "Conexión SSL cerrada durante handshake\n");
       close(sockfd);
       free(root_der);
       return 1;
     }
-    total_sent += w;
-    // Extraer registros TLS y enviarlos al socket
-    unsigned char outbuf[BR_SSL_BUFSIZE_BIDI];
-    int outlen;
-    while ((outlen = br_ssl_engine_flush(&sc.eng, 0, outbuf, sizeof(outbuf))) > 0) {
-      if (write(sockfd, outbuf, outlen) != outlen) {
-        perror("write(socket) en flush");
-        close(sockfd);
-        free(root_der);
-        return 1;
+
+    if (state & BR_SSL_SENDREC) {
+      unsigned char *sendrec_buf;
+      size_t sendrec_len;
+
+      sendrec_buf = br_ssl_engine_sendrec_buf(&sc.eng, &sendrec_len);
+      if (sendrec_buf && sendrec_len > 0) {
+        ssize_t written = write(sockfd, sendrec_buf, sendrec_len);
+        if (written <= 0) {
+          fprintf(stderr, "Error escribiendo durante handshake\n");
+          close(sockfd);
+          free(root_der);
+          return 1;
+        }
+        br_ssl_engine_sendrec_ack(&sc.eng, (size_t)written);
       }
+      continue;
+    }
+
+    if (state & BR_SSL_RECVREC) {
+      unsigned char *recvrec_buf;
+      size_t recvrec_len;
+      unsigned char tmpbuf[1024];
+
+      recvrec_buf = br_ssl_engine_recvrec_buf(&sc.eng, &recvrec_len);
+      if (recvrec_buf && recvrec_len > 0) {
+        ssize_t nread = read(sockfd, tmpbuf, sizeof(tmpbuf));
+        if (nread <= 0) {
+          fprintf(stderr, "Error leyendo durante handshake\n");
+          close(sockfd);
+          free(root_der);
+          return 1;
+        }
+
+        size_t to_copy = (size_t)nread;
+        if (to_copy > recvrec_len) to_copy = recvrec_len;
+
+        memcpy(recvrec_buf, tmpbuf, to_copy);
+        br_ssl_engine_recvrec_ack(&sc.eng, to_copy);
+      }
+      continue;
+    }
+
+    if (state & BR_SSL_SENDAPP) {
+      // Handshake completado, podemos enviar datos de aplicación
+      break;
     }
   }
 
-  // 3.9) Leer respuesta cifrada y volcar descifrado a stdout
-  unsigned char rdbuf[BUFFER_SIZE];
-  int done = 0;
-  while (!done) {
-    int nread = read(sockfd, rdbuf, sizeof(rdbuf));
-    if (nread < 0) {
-      perror("read(socket)");
-      break;
-    }
-    if (nread == 0) {
-      done = 1;
-    } else {
-      int offset = 0;
-      while (offset < nread) {
-        int rec = br_ssl_engine_recvrec(&sc.eng,
-                                        rdbuf + offset,
-                                        nread - offset);
-        if (rec < 0) {
-          fprintf(stderr, "Error br_ssl_engine_recvrec: %d\n", rec);
-          close(sockfd);
-          free(root_der);
-          return 1;
-        }
-        offset += rec;
-        // Leer bytes descifrados
-        unsigned char appbuf[BR_SSL_BUFSIZE_BIDI];
-        int appn;
-        while ((appn = br_ssl_engine_recvapp(&sc.eng, appbuf, sizeof(appbuf))) > 0) {
-          fwrite(appbuf, 1, appn, stdout);
-        }
-      }
-      // Extraer posibles registros TLS pendientes
-      unsigned char out2[BR_SSL_BUFSIZE_BIDI];
-      int w2;
-      while ((w2 = br_ssl_engine_flush(&sc.eng, 0, out2, sizeof(out2))) > 0) {
-        if (write(sockfd, out2, w2) != w2) {
-          perror("write(socket) flush tras recv");
-          close(sockfd);
-          free(root_der);
-          return 1;
-        }
-      }
-    }
+  // 3.9) Enviar petición HTTP
+  if (ssl_write_all(&sc.eng, sockfd, (const unsigned char*)request, (size_t)req_len) != 0) {
+    fprintf(stderr, "Error enviando petición HTTP\n");
+    close(sockfd);
+    free(root_der);
+    return 1;
+  }
+
+  // 3.10) Leer respuesta
+  if (ssl_read_response(&sc.eng, sockfd) != 0) {
+    fprintf(stderr, "Error leyendo respuesta HTTP\n");
+    close(sockfd);
+    free(root_der);
+    return 1;
   }
 
   close(sockfd);
