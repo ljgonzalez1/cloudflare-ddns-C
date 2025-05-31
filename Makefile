@@ -44,7 +44,7 @@ PROGRAMS = \
     hello_world \
     get_public_ip \
     post_http_request \
-    create_a_cloudflare_a_record
+    create_cloudflare_a_record
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON = \
