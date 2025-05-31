@@ -74,7 +74,7 @@ SUFFIX = .bin
 ###############################################################################
 
 # Lista de librerías a incluir (descomenta las que necesites)
-LIB = -static -static-libgcc
+LIB = -static -static-libgcc -lssl -lcrypto
 
 
 ###############################################################################
