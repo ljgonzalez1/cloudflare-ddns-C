@@ -44,13 +44,11 @@ PROGRAMS = \
     hello_world \
     get_public_ip \
     post_http_request \
-    create_cloudflare_a_record
+    create_cloudflare_a_record \
+    import_mbedtls
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
-COMMON = \
-    include \
-    common \
-    lib
+COMMON =
 
 # La carpeta donde va todo el código
 SRC = src
@@ -74,7 +72,10 @@ OBJ = obj
 ###############################################################################
 
 # Lista de librerías a incluir (descomenta las que necesites)
-LIB = -static -static-libgcc -lbearssl
+LIB = -static -static-libgcc \
+      $(SRC)/lib/mbedtls/library/libmbedcrypto.a \
+      $(SRC)/lib/mbedtls/library/libmbedtls.a \
+      $(SRC)/lib/mbedtls/library/libmbedx509.a
 
 
 ###############################################################################
@@ -229,7 +230,10 @@ OBJDIR   := $(sort $(dir $(ALL_OBJFILES)))
 ###############################################################################
 # PARÁMETROS ADICIONALES                                                      #
 ###############################################################################
-CFLAGS = $(OPT)
+CFLAGS = $(OPT) \
+	-I$(SRC)/lib/mbedtls/include \
+    	-I$(SRC)/lib/mbedtls/tf-psa-crypto/include \
+    	-I$(SRC)/lib/mbedtls/drivers/builtin/include
 
 
 ###############################################################################
@@ -321,7 +325,7 @@ $(OBJ)/%.o: $(SRC)/%.c $$(call LOCAL_DEps,$$@) $(HDRFILES) Makefile
 	@$(if $(filter true,$(OPTIMIZED_MODE)),,echo "$(GREEN)Compiling $(notdir $<)...$(RESET)")
 	@$(if $(filter true,$(OPTIMIZED_MODE)),,echo "$(CC) $(CFLAGS) $< -c -o $@ $(LIB)")
 	@$(MKDIR_CMD) $(dir $@)
-	@$(CC) $(CFLAGS) $< -c -o $@ $(LIB)
+	@$(CC) $(CFLAGS) $< -c -o $@
 	@ CURRENT=$$(cat .compile_count 2>$(NULL_DEVICE) || echo 0); \
 	   CURRENT=$$((CURRENT+1)); \
 	   echo $$CURRENT > .compile_count; \
