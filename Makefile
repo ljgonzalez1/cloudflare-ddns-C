@@ -37,11 +37,12 @@
 
 # Descomentar una:
 # OPTIMIZED_MODE = true   # No mostrará warnings y optimizará al máximo
-OPTIMIZED_MODE = false  # Mostrará warnings y no optimizará. Sirve para debug
+OPTIMIZED_MODE = true  # Mostrará warnings y no optimizará. Sirve para debug
 
 # Directorios que serán compilados a un programa (busca de forma recursiva en la carpeta)
 PROGRAMS = \
-    hello_world
+    hello_world \
+    get_public_ip
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON = \
@@ -71,13 +72,7 @@ SUFFIX = .bin
 ###############################################################################
 
 # Lista de librerías a incluir (descomenta las que necesites)
-LIB  = \
-    -static \
-    -lcurl
-    # -lm
-    # -lpng \
-    # -lpthread \
-    # -ljpg
+LIB = -static -static-libgcc
 
 
 ###############################################################################
