@@ -42,7 +42,8 @@ OPTIMIZED_MODE = true  # Mostrará warnings y no optimizará. Sirve para debug
 # Directorios que serán compilados a un programa (busca de forma recursiva en la carpeta)
 PROGRAMS = \
     hello_world \
-    get_public_ip
+    get_public_ip \
+    post_http_request
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON = \
