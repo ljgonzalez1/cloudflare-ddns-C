@@ -60,5 +60,6 @@ get_public_ip
 hello_world
 post_http_request
 create_cloudflare_a_record
+import_mbedtls
 
 .compile_count

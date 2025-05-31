@@ -73,9 +73,14 @@ OBJ = obj
 
 # Lista de librerías a incluir (descomenta las que necesites)
 LIB = -static -static-libgcc \
-      $(SRC)/lib/mbedtls/library/libmbedcrypto.a \
-      $(SRC)/lib/mbedtls/library/libmbedtls.a \
-      $(SRC)/lib/mbedtls/library/libmbedx509.a
+      $(SRC)/lib/mbedTLS/library/libmbedcrypto.a \
+      $(SRC)/lib/mbedTLS/library/libmbedtls.a \
+      $(SRC)/lib/mbedTLS/library/libmbedx509.a
+
+LIBS_CFLAGS = -I$(SRC)/lib/mbedTLS/include \
+              -I$(SRC)/lib/mbedTLS/tf-psa-crypto/include \
+              -I$(SRC)/lib/mbedTLS/drivers/builtin/include \
+              -I$(SRC)/lib/mbedTLS/tf-psa-crypto/drivers/builtin/include
 
 
 ###############################################################################
@@ -230,10 +235,7 @@ OBJDIR   := $(sort $(dir $(ALL_OBJFILES)))
 ###############################################################################
 # PARÁMETROS ADICIONALES                                                      #
 ###############################################################################
-CFLAGS = $(OPT) \
-	-I$(SRC)/lib/mbedtls/include \
-    	-I$(SRC)/lib/mbedtls/tf-psa-crypto/include \
-    	-I$(SRC)/lib/mbedtls/drivers/builtin/include
+CFLAGS = $(OPT) $(LIBS_CFLAGS)
 
 
 ###############################################################################
