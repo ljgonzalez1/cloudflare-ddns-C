@@ -67,14 +67,14 @@ OBJ = obj
 # TODO: Implementar
 # Añade un sufijo al archivo. Suele dejarse vacía.
 # De ponerse, idealmente debería ser una extensión
-SUFFIX = .bin
+#SUFFIX = .bin
 
 ###############################################################################
 # LIBRERÍAS                                                                   #
 ###############################################################################
 
 # Lista de librerías a incluir (descomenta las que necesites)
-LIB = -static -static-libgcc -lssl -lcrypto
+LIB = -static -static-libgcc -lbearssl
 
 
 ###############################################################################
