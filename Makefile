@@ -41,7 +41,7 @@ OPTIMIZED_MODE = false  # Mostrará warnings y no optimizará. Sirve para debug
 
 # Directorios que serán compilados a un programa (busca de forma recursiva en la carpeta)
 PROGRAMS = \
-    cloudflare_ddns
+    hello_world
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON = \
