@@ -61,6 +61,7 @@ CC = gcc -std=gnu11
 # La carpeta donde van los .o
 OBJ = obj
 
+# TODO: Implementar
 # Añade un sufijo al archivo. Suele dejarse vacía.
 # De ponerse, idealmente debería ser una extensión
 SUFFIX = .bin
@@ -216,7 +217,7 @@ $(foreach prog,$(PROGRAMS), \
   $(eval $(prog)_SRC := $(call find_files,$(prog),*.c) $(COMMON_SRC)) \
   $(eval $(prog)_OBJS := $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$($(prog)_SRC))) )
 
-BIN_PROGRAMS := $(addprefix $(BIN)/,$(addsuffix $(SUFFIX),$(PROGRAMS)))
+BIN_PROGRAMS := $(addprefix $(BIN)/,$(PROGRAMS))
 
 ALL_OBJFILES := $(foreach prog,$(PROGRAMS),$($(prog)_OBJS))
 TOTAL_OBJS   := $(words $(ALL_OBJFILES))
@@ -333,14 +334,11 @@ $(OBJ)/%.o: $(SRC)/%.c $$(call LOCAL_DEps,$$@) $(HDRFILES) Makefile
 ###############################################################################
 # Linkeo final                                                                #
 ###############################################################################
-define make_binary_rule
-$(BIN)/$(1)$(SUFFIX): $$($(1)_OBJS)
-	@echo "$(GREEN)Linking $$(notdir $$@)...$(RESET)"
-	@$(if $(filter true,$(OPTIMIZED_MODE)),,echo "$(CC) $(CFLAGS) $$^ -o $$@ $(LIB)")
-	@$(CC) $(CFLAGS) $$^ -o $$@ $(LIB)
-	@echo "$(GREEN_BOLD)  compiled '$$(notdir $$@)'$(RESET)"
-endef
-$(foreach prog,$(PROGRAMS),$(eval $(call make_binary_rule,$(prog))))
+$(BIN)/%: $$($$*_OBJS)
+	@echo "$(GREEN)Linking $(notdir $@)...$(RESET)"
+	@$(if $(filter true,$(OPTIMIZED_MODE)),,echo "$(CC) $(CFLAGS) $^ -o $@ $(LIB)")
+	@$(CC) $(CFLAGS) $^ -o $@ $(LIB)
+	@echo "$(GREEN_BOLD)  compiled '$(notdir $@)'$(RESET)"
 
 ###############################################################################
 #                   Cualquier duda no temas en preguntar!                     #
