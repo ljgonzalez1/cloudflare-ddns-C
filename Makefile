@@ -73,9 +73,9 @@ OBJ = obj
 
 # Lista de librerías a incluir (descomenta las que necesites)
 LIB = -static -static-libgcc \
-      $(SRC)/lib/mbedTLS/library/libmbedcrypto.a \
       $(SRC)/lib/mbedTLS/library/libmbedtls.a \
-      $(SRC)/lib/mbedTLS/library/libmbedx509.a
+      $(SRC)/lib/mbedTLS/library/libmbedx509.a \
+      $(SRC)/lib/mbedTLS/library/libmbedcrypto.a
 
 LIBS_CFLAGS = -I$(SRC)/lib/mbedTLS/include \
               -I$(SRC)/lib/mbedTLS/tf-psa-crypto/include \
