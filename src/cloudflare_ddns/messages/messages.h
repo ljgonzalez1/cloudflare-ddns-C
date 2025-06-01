@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEFAULT_LOCALE "en_US"
+//#define DEFAULT_LOCALE "en_US"
 
 struct messages {
   const char *lang_code;
