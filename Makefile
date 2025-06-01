@@ -45,7 +45,8 @@ PROGRAMS = \
     get_public_ip \
     post_http_request \
     import_mbedtls \
-    create_cloudflare_a_record
+    create_cloudflare_a_record \
+    get_cloudflare_zone_id
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON =
