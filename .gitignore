@@ -61,5 +61,6 @@ hello_world
 post_http_request
 create_cloudflare_a_record
 import_mbedtls
+get_cloudflare_zone_id
 
 .compile_count
