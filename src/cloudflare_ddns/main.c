@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "utils/get_env.h"
 #include "utils/is_true.h"
 
@@ -9,6 +6,8 @@
 int main(int argc, char *argv[]) {
 
   const char *is_proxied = get_env_var("PROXIED");
+  const char *cloudflare_api_key = get_env_var("CLOUDFLARE_API_KEY");
+
 
   printf("%s\n", is_proxied);
 

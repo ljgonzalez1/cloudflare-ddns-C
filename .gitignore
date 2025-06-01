@@ -56,14 +56,14 @@ show_code.sh
 Codigo.txt
 
 *.bin
-get_public_ip
-hello_world
-post_http_request
-create_cloudflare_a_record
-import_mbedtls
-get_cloudflare_zone_id
-ip_format_checker
-cloudflare_ddns
+./get_public_ip
+./hello_world
+./post_http_request
+./create_cloudflare_a_record
+./import_mbedtls
+./get_cloudflare_zone_id
+./ip_format_checker
+./cloudflare_ddns
 
 *.env
 !example.env
