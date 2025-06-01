@@ -2,21 +2,21 @@
 #include <stdlib.h>
 
 #include "utils/get_env.h"
-#include "messages/messages.h"
+#include "utils/is_true.h"
 
+#include "messages/messages.h"
 
 int main(int argc, char *argv[]) {
 
-  const char *valor = get_env_var("PROXIED");
+  const char *is_proxied = get_env_var("PROXIED");
 
-  printf("%s\n", valor);
+  printf("%s\n", is_proxied);
 
-  /* Ahora “Messages” existe y trae los strings inicializados: */
-  printf("%s\n", MSG_PROGRAM_START);
-  printf("%s\n", MSG_PROGRAM_END);
-
-  /* Por ejemplo, en algún error: */
-  printf("%s\n", MSG_VAR_NOT_FOUND);
+  if (to_bool(is_proxied)) {
+    printf("Is proxied\n");
+  } else {
+    printf("Not proxied\n");
+  }
 
   return 0;
 }
