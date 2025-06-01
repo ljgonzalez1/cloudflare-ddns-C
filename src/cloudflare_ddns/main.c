@@ -7,8 +7,9 @@
 
 int main(int argc, char *argv[]) {
 
-  const char *valor = getenv("PROXIED");
+  const char *valor = get_env_var("PROXIED");
 
+  printf("%s\n", valor);
 
 
   return 0;
