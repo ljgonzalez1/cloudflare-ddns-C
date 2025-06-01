@@ -63,5 +63,9 @@ create_cloudflare_a_record
 import_mbedtls
 get_cloudflare_zone_id
 ip_format_checker
+cloudflare_ddns
+
+*.env
+!example.env
 
 .compile_count
