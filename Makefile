@@ -47,7 +47,8 @@ PROGRAMS = \
     import_mbedtls \
     create_cloudflare_a_record \
     get_cloudflare_zone_id \
-    ip_format_checker
+    ip_format_checker \
+    cloudflare_ddns
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON =
