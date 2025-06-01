@@ -41,14 +41,14 @@ OPTIMIZED_MODE = false  # Mostrará warnings y no optimizará. Sirve para debug
 
 # Directorios que serán compilados a un programa (busca de forma recursiva en la carpeta)
 PROGRAMS = \
-    hello_world \
-    get_public_ip \
-    post_http_request \
-    import_mbedtls \
-    create_cloudflare_a_record \
-    get_cloudflare_zone_id \
-    ip_format_checker \
     cloudflare_ddns
+    #hello_world \
+    #get_public_ip \
+    #post_http_request \
+    #import_mbedtls \
+    #create_cloudflare_a_record \
+    #get_cloudflare_zone_id \
+    #ip_format_checker \
 
 # Directorios con elementos de uso común (busca de forma recursiva en la carpetas incluidas)
 COMMON =
