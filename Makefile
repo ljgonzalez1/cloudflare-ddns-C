@@ -76,6 +76,7 @@ OBJ = obj
 
 # Lista de librerías a incluir (descomenta las que necesites)
 LIB = -static -static-libgcc \
+	  -pthread \
       $(SRC)/lib/mbedTLS/library/libmbedtls.a \
       $(SRC)/lib/mbedTLS/library/libmbedx509.a \
       $(SRC)/lib/mbedTLS/library/libmbedcrypto.a
