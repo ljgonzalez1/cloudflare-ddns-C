@@ -49,9 +49,9 @@
 static void print_application_header(void) {
   printf("╔════════════════════════════════════════════════════════════════╗\n");
   printf("║  %s v%s%*s║\n", APP_NAME, APP_VERSION,
-         (int)(58 - strlen(APP_NAME) - strlen(APP_VERSION) - 3), "");
+         (int)(58 - strlen(APP_NAME) - strlen(APP_VERSION) + 2), "");
   printf("║  By %s%*s║\n", APP_AUTHOR,
-         (int)(60 - strlen(APP_AUTHOR) - 5), "");
+         (int)(60 - strlen(APP_AUTHOR) + 0), "");
   printf("╚════════════════════════════════════════════════════════════════╝\n");
   printf("\n");
 }
