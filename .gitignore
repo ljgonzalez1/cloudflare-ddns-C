@@ -65,6 +65,8 @@ Codigo.txt
 ./ip_format_checker
 ./cloudflare_ddns
 
+bin
+
 *.env
 !example.env
 

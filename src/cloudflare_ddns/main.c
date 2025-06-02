@@ -77,7 +77,7 @@ int main(void) {
     goto cleanup;
   }
 
-  printf("DOES STUFF\n");
+  printf("\n-------------==============DOES STUFF==============-------------\n");
 
 
   printf("\n");
