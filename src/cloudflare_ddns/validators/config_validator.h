@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 #include "api_key.h"
-#include "domain.h"
+#include "domains.h"
 #include "envitonment_initialized.h"
 #include "proxied.h"
 

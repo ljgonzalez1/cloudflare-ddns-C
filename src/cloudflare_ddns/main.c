@@ -23,6 +23,7 @@
 // ==============================================================================
 
 #include "environment/environment_variables.h"
+#include "messages/messages.h"
 #include "handlers/error_handler.h"
 #include "handlers/help.h"
 #include "validators/config_validator.h"
