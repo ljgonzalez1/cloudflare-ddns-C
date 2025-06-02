@@ -77,8 +77,8 @@ int main(void) {
     goto cleanup;
   }
 
-  // Demonstrate how the configuration would be used
-  demonstrate_configuration_usage();
+  printf("DOES STUFF\n");
+
 
   printf("\n");
   printf("✨ Application completed successfully!\n");
