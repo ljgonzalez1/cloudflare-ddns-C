@@ -289,7 +289,7 @@ int main(int argc, char* argv[]) {
 
   struct timespec check_interval;
   check_interval.tv_sec = 0;
-  check_interval.tv_nsec = 50000000; // 50ms
+  check_interval.tv_nsec = 5000000; // 5ms
 
   // Poll for result without blocking indefinitely
   while (!shared.result_written) {
