@@ -125,29 +125,24 @@ int main(void) {
       wait_for_dns_propagation(Env.PROPAGATION_DELAY_SECONDS);
 
       printf("  🔍 11.B.3. Verificando actualizaciones...\n");
+      bool ip_matches_updated_dns = check_ip_matches_dns(ip, dns_records);
+      printf("Pasar esto un for i in attempts; if not matches, update until limit reached en vez de un if-else...\n");
 
       printf("  ✅ 11.B.4. ¡Registro DNS actualizado exitosamente!\n");
 
-      update_dns_record(domain, zone_id, Env.CLOUDFLARE_API_KEY, ip);
-      printf("  ✅ 11.B.2. ��Registro DNS actualizado exitosamente!\n");
-
     } else {
       printf("  ✅ 11.A. El registro DNS coincide con la IP actual, saltando pasos...\n");
+      goto cleanup;
+      printf("🚪 13. Saliendo... || 💤 Durmiendo...\n");
     }
   }
-
-
-
-
-  printf("🧹 12. Limpiando recursos...\n");
-  printf("🚪 13. Saliendo... || 💤 Durmiendo...\n");
 
   printf("\n-------------==============STUFF DONE==============-------------\n");
 
   printf("\n");
   printf("✨ Application completed successfully!\n");
 
-cleanup:
+  cleanup:
   // Always clean up allocated resources
   printf("\n🧹 Cleaning up resources...\n");
   cleanup_env_variables();
