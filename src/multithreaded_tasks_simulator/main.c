@@ -104,7 +104,6 @@ static uint64_t simulate_heavy_computation(int thread_id, int duration_seconds, 
 
   uint64_t iteration_count = 0;
   double elapsed_seconds = 0.0;
-
   // Keep working until we reach the target duration
   while (elapsed_seconds < duration_seconds) {
     // Do a batch of intensive calculations
@@ -125,8 +124,8 @@ static uint64_t simulate_heavy_computation(int thread_id, int duration_seconds, 
     elapsed_seconds = (current_time.tv_sec - start_time.tv_sec) +
                       (current_time.tv_nsec - start_time.tv_nsec) / 1000000000.0;
 
-    // Check if we should stop (every 0.1 seconds approximately)
-    if (iteration_count % 100000 == 0) {
+    // Check if we should stop (every 0.05 seconds approximately)
+    if (iteration_count % 200000 == 0) {
       if (__atomic_load_n(&shared->should_stop, __ATOMIC_ACQUIRE)) {
         break;
       }
