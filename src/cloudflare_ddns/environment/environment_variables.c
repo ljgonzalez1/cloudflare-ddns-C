@@ -377,6 +377,14 @@ void init_env_variables(void) {
   Env.DOMAINS = (char**)domains_result.arr;
   Env.DOMAINS_COUNT = domains_result.size;
 
+  // Parse and initialize APIs for getting public IP. If none provided, use hardcoded values
+  const char* api_string = strcmp(get_env_var("IP_V4_APIS"), "") == 0 ? HARDCODED_IP_V4_APIS : get_env_var("IP_V4_APIS");
+  MetaArray api_result = parse_domains(api_string);
+
+  Env.IP_V4_APIS = (char**)api_result.arr;
+  Env.IP_V4_APIS_COUNT = api_result.size;
+
+
 #ifdef ENV_ENABLE_LOGGING
   env_log("INFO", "Environment initialization complete. Loaded %zu domains", Env.DOMAINS_COUNT);
 #endif
@@ -398,6 +406,17 @@ void cleanup_env_variables(void) {
 #endif
   }
 
+  // Clean up domains APIs array if allocated
+  if (Env.IP_V4_APIS != NULL) {
+    free_string_array(Env.IP_V4_APIS, Env.IP_V4_APIS_COUNT);
+    Env.IP_V4_APIS = NULL;
+    Env.IP_V4_APIS_COUNT = 0;
+
+#ifdef ENV_ENABLE_LOGGING
+    env_log("DEBUG", "Domains IP APIs array cleaned up");
+#endif
+  }
+
   // Reset other fields (API key is not allocated by us, so don't free)
   Env.PROXIED = false;
   Env.CLOUDFLARE_API_KEY = NULL;
@@ -415,8 +434,9 @@ bool is_env_initialized(void) {
   // Basic sanity checks
   bool api_key_valid = (Env.CLOUDFLARE_API_KEY != NULL && strlen(Env.CLOUDFLARE_API_KEY) > 0);
   bool domains_consistent = (Env.DOMAINS_COUNT == 0) ? (Env.DOMAINS == NULL) : (Env.DOMAINS != NULL);
+  bool apis_consistent = (Env.IP_V4_APIS_COUNT == 0) ? (Env.IP_V4_APIS == NULL) : (Env.IP_V4_APIS != NULL);
 
-  return api_key_valid && domains_consistent;
+  return api_key_valid && domains_consistent && apis_consistent;
 }
 
 void print_env_config(bool show_domains) {

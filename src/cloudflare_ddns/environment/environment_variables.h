@@ -5,6 +5,8 @@
 
 #pragma once
 
+#define HARDCODED_IP_V4_APIS "ipinfo.io/ip,api.ipify.org/,ipv4.icanhazip.com/"
+
 // ==============================================================================
 // SYSTEM INCLUDES
 // ==============================================================================
@@ -111,6 +113,22 @@ typedef struct {
    * Range: 0 to MAX_DOMAINS
    */
   size_t DOMAINS_COUNT;
+
+  /**
+   * @brief Array of IP getter API URLs
+   *
+   * List of URLs for retrieving external IP addresses. The DDNS client
+   * will use this to determine the current public IP address.
+   */
+  char** IP_V4_APIS;
+
+/**
+ * @brief Number of IP getter API URLs in IP_V4_APIS array
+ *
+ *
+ * Range: 0 to IP_V4_APIS_COUNT
+ */
+  size_t IP_V4_APIS_COUNT;
 
 } EnvVariables;
 

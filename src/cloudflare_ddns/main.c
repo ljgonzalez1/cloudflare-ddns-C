@@ -80,13 +80,36 @@ int main(void) {
   printf("\n-------------==============DOES STUFF==============-------------\n");
   printf("\nROADMAP - CODE FLOW\n");
 
-  printf("🔑 1. Verificando validez del token API de Cloudflare...\n");
-  printf("🌐 2. Obteniendo ID de zona para {ZONE}...\n");
-  printf("🔍 3. Comprobando si el subdominio existe en la zona...\n");
-  printf("  ➕ 3.A. Subdominio no existe. Creando subdominio {PROXIED?}proxiado {DOMAIN} en zona {ZONE} con registro A 1.1.1.1...\n");
-  printf("✅ 4. ¡Subdominio {DOMAIN} creado exitosamente en zona {ZONE}!\n");
+  printf("Primero asumimos que todo funciona y el código no explota...\n");
 
-  printf("🌍 5. Obteniendo dirección IP pública actual de {A}, {B} y {C} con solicitud GET...\n");
+  printf("🔑 1. Verificando validez del token API de Cloudflare...\n");
+  bool is_api_key_valid = check_cloudflare_api_key_validity(Env);
+
+  for (size_t domain_index = 0; domain_index < Env.DOMAINS_COUNT; domain_index++) {
+    char *domain = Env.DOMAINS[domain_index];
+
+    printf("Procesando subdominio {DOMAIN}:\n");
+    printf("🌐 2. Obteniendo ID de zona para {ZONE}...\n");
+    char *zone_id = get_zone_id(domain, Env.CLOUDFLARE_API_KEY);
+
+    printf("🔍 3. Comprobando si el subdominio existe en la zona...\n");
+    bool domain_exists = check_domain_existence(domain, zone_id, Env.CLOUDFLARE_API_KEY);
+
+    if (!domain_exists) {
+      printf("  ➕ 3.A. Subdominio no existe. Creando subdominio {PROXIED?}proxiado {DOMAIN} en zona {ZONE} con registro A 1.1.1.1...\n");
+      create_domain(domain, zone_id, Env.CLOUDFLARE_API_KEY, Env.PROXIED);
+      printf("✅ 4. ¡Subdominio {DOMAIN} creado exitosamente en zona {ZONE}!\n");
+
+    } else {
+      printf("✅ 4. ¡Subdominio {DOMAIN} encontrado en zona {ZONE}!\n");
+    }
+
+    printf("🌍 5. Obteniendo dirección IP pública actual de {A}, {B} y {C} con solicitud GET...\n");
+    char *ip = get_public_ip(Env.A, Env.B, Env.C);
+  }
+
+
+
   printf("🧵 6. Lanzando hilos...\n");
   printf("⏳ 7. Esperando a que todos los hilos terminen...\n");
   printf("🏁 8. Primer hilo terminó con valor válido: Dirección IP pública: {IP}\n");
