@@ -18,7 +18,11 @@ EnvVariables Env = {
     .PROXIED = false,
     .CLOUDFLARE_API_KEY = NULL,
     .DOMAINS = NULL,
-    .DOMAINS_COUNT = 0
+    .DOMAINS_COUNT = 0,
+    .IP_V4_APIS = NULL,
+    .IP_V4_APIS_COUNT = 0,
+    .MINUTES_BETWEEN_UPDATES = 5,
+    .PROPAGATION_DELAY_SECONDS = 60
 };
 
 // ==============================================================================
@@ -370,6 +374,18 @@ void init_env_variables(void) {
     }
 #endif
 
+  // initialize propagation delay (direct pointer, no memory allocation)
+  const char* propagation_string = get_env_var("PROPAGATION_DELAY");
+  // TODO: Validate propagation delay string and convert to integer
+  Env.PROPAGATION_DELAY_SECONDS = (unsigned int) atoi(propagation_string);
+
+  // initialize propagation delay (direct pointer, no memory allocation)
+  const char* update_time = get_env_var("MINUTES_BETWEEN_UPDATES");
+  // TODO: Validate propagation delay string and convert to integer
+  Env.MINUTES_BETWEEN_UPDATES = (unsigned int) atoi(update_time);
+
+
+
   // Parse and initialize domains
   const char* domains_string = get_env_var("DOMAINS");
   MetaArray domains_result = parse_domains(domains_string);
@@ -424,6 +440,10 @@ void cleanup_env_variables(void) {
 #ifdef ENV_ENABLE_LOGGING
   env_log("INFO", "Environment cleanup complete");
 #endif
+
+  // Reset propagation delay and update time
+  Env.PROPAGATION_DELAY_SECONDS = 0;
+  Env.MINUTES_BETWEEN_UPDATES = 0;
 }
 
 // ==============================================================================
@@ -433,10 +453,11 @@ void cleanup_env_variables(void) {
 bool is_env_initialized(void) {
   // Basic sanity checks
   bool api_key_valid = (Env.CLOUDFLARE_API_KEY != NULL && strlen(Env.CLOUDFLARE_API_KEY) > 0);
+  bool times_are_valid = (Env.PROPAGATION_DELAY_SECONDS > 0 && Env.MINUTES_BETWEEN_UPDATES > 0);
   bool domains_consistent = (Env.DOMAINS_COUNT == 0) ? (Env.DOMAINS == NULL) : (Env.DOMAINS != NULL);
   bool apis_consistent = (Env.IP_V4_APIS_COUNT == 0) ? (Env.IP_V4_APIS == NULL) : (Env.IP_V4_APIS != NULL);
 
-  return api_key_valid && domains_consistent && apis_consistent;
+  return api_key_valid && domains_consistent && apis_consistent && times_are_valid;
 }
 
 void print_env_config(bool show_domains) {

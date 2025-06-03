@@ -82,6 +82,13 @@ int main(void) {
 
   printf("Primero asumimos que todo funciona y el código no explota...\n");
 
+  printf("🌍 5. Obteniendo dirección IP pública actual de {A}, {B} y {C} con solicitud GET...\n");
+  printf("🧵 6. Lanzando hilos...\n");
+  printf("⏳ 7. Esperando a que todos los hilos terminen...\n");
+  char *ip = get_public_ip(Env.IP_V4_APIS, Env.IP_V4_APIS_COUNT);
+  printf("🏁 8. Primer hilo terminó con valor válido: Dirección IP pública: {IP}\n");
+  printf("🛑 9. Terminando hilos restantes...\n");
+
   printf("🔑 1. Verificando validez del token API de Cloudflare...\n");
   bool is_api_key_valid = check_cloudflare_api_key_validity(Env);
 
@@ -104,26 +111,34 @@ int main(void) {
       printf("✅ 4. ¡Subdominio {DOMAIN} encontrado en zona {ZONE}!\n");
     }
 
-    printf("🌍 5. Obteniendo dirección IP pública actual de {A}, {B} y {C} con solicitud GET...\n");
-    char *ip = get_public_ip(Env.A, Env.B, Env.C);
+    printf("📡 10. Obteniendo registros DNS de Cloudflare...\n");
+    char *dns_records = get_dns_records(domain, zone_id, Env.CLOUDFLARE_API_KEY);
+
+    printf("🔄 11. Comparando IP actual con registros DNS...\n");
+    bool ip_matches_dns = check_ip_matches_dns(ip, dns_records);
+
+    if (!ip_matches_dns) {
+      printf("  🔄 11.B.1. El registro DNS no coincide con la IP actual, actualizando registro DNS de W.X.Y.Z a A.B.C.D...\n");
+      update_dns_record(domain, zone_id, Env.CLOUDFLARE_API_KEY, ip);
+
+      printf("  ⏳ 11.B.2. Esperando propagación DNS...\n");
+      wait_for_dns_propagation(Env.PROPAGATION_DELAY_SECONDS);
+
+      printf("  🔍 11.B.3. Verificando actualizaciones...\n");
+
+      printf("  ✅ 11.B.4. ¡Registro DNS actualizado exitosamente!\n");
+
+      update_dns_record(domain, zone_id, Env.CLOUDFLARE_API_KEY, ip);
+      printf("  ✅ 11.B.2. ��Registro DNS actualizado exitosamente!\n");
+
+    } else {
+      printf("  ✅ 11.A. El registro DNS coincide con la IP actual, saltando pasos...\n");
+    }
   }
 
 
 
-  printf("🧵 6. Lanzando hilos...\n");
-  printf("⏳ 7. Esperando a que todos los hilos terminen...\n");
-  printf("🏁 8. Primer hilo terminó con valor válido: Dirección IP pública: {IP}\n");
-  printf("🛑 9. Terminando hilos restantes...\n");
 
-  printf("📡 10. Obteniendo registros DNS de Cloudflare...\n");
-  printf("🔄 11. Comparando IP actual con registros DNS...\n");
-
-  printf("  ✅ 11.A. El registro DNS coincide con la IP actual, saltando pasos...\n");
-  printf("  🔄 11.B.1. El registro DNS no coincide con la IP actual, actualizando registro DNS de W.X.Y.Z a A.B.C.D...\n");
-  printf("  ⏳ 11.B.2. Esperando propagación DNS...\n");
-  printf("  🔍 11.B.3. Verificando actualizaciones...\n");
-
-  printf("  ✅ 11.B.4. ¡Registro DNS actualizado exitosamente!\n");
   printf("🧹 12. Limpiando recursos...\n");
   printf("🚪 13. Saliendo... || 💤 Durmiendo...\n");
 

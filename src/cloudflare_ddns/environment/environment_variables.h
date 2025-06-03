@@ -130,6 +130,16 @@ typedef struct {
  */
   size_t IP_V4_APIS_COUNT;
 
+/**
+ * @brief Propagation delay for DNS in seconds
+ */
+  unsigned int PROPAGATION_DELAY_SECONDS;
+
+/**
+ *
+ */
+  unsigned int MINUTES_BETWEEN_UPDATES;
+
 } EnvVariables;
 
 // ==============================================================================
