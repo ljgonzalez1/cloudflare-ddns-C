@@ -85,56 +85,56 @@ int main(void) {
   printf("🌍 5. Obteniendo dirección IP pública actual de {A}, {B} y {C} con solicitud GET...\n");
   printf("🧵 6. Lanzando hilos...\n");
   printf("⏳ 7. Esperando a que todos los hilos terminen...\n");
-  char *ip = get_public_ip(Env.IP_V4_APIS, Env.IP_V4_APIS_COUNT);
+//  char *ip = get_public_ip(Env.IP_V4_APIS, Env.IP_V4_APIS_COUNT);
   printf("🏁 8. Primer hilo terminó con valor válido: Dirección IP pública: {IP}\n");
   printf("🛑 9. Terminando hilos restantes...\n");
 
   printf("🔑 1. Verificando validez del token API de Cloudflare...\n");
-  bool is_api_key_valid = check_cloudflare_api_key_validity(Env);
+//  bool is_api_key_valid = check_cloudflare_api_key_validity(Env);
 
   for (size_t domain_index = 0; domain_index < Env.DOMAINS_COUNT; domain_index++) {
     char *domain = Env.DOMAINS[domain_index];
 
     printf("Procesando subdominio {DOMAIN}:\n");
     printf("🌐 2. Obteniendo ID de zona para {ZONE}...\n");
-    char *zone_id = get_zone_id(domain, Env.CLOUDFLARE_API_KEY);
+//    char *zone_id = get_zone_id(domain, Env.CLOUDFLARE_API_KEY);
 
     printf("🔍 3. Comprobando si el subdominio existe en la zona...\n");
-    bool domain_exists = check_domain_existence(domain, zone_id, Env.CLOUDFLARE_API_KEY);
+//    bool domain_exists = check_domain_existence(domain, zone_id, Env.CLOUDFLARE_API_KEY);
 
-    if (!domain_exists) {
+//    if (!domain_exists) {
       printf("  ➕ 3.A. Subdominio no existe. Creando subdominio {PROXIED?}proxiado {DOMAIN} en zona {ZONE} con registro A 1.1.1.1...\n");
-      create_domain(domain, zone_id, Env.CLOUDFLARE_API_KEY, Env.PROXIED);
+//      create_domain(domain, zone_id, Env.CLOUDFLARE_API_KEY, Env.PROXIED);
       printf("✅ 4. ¡Subdominio {DOMAIN} creado exitosamente en zona {ZONE}!\n");
 
-    } else {
+//    } else {
       printf("✅ 4. ¡Subdominio {DOMAIN} encontrado en zona {ZONE}!\n");
-    }
+//    }
 
     printf("📡 10. Obteniendo registros DNS de Cloudflare...\n");
-    char *dns_records = get_dns_records(domain, zone_id, Env.CLOUDFLARE_API_KEY);
+//    char *dns_records = get_dns_records(domain, zone_id, Env.CLOUDFLARE_API_KEY);
 
     printf("🔄 11. Comparando IP actual con registros DNS...\n");
-    bool ip_matches_dns = check_ip_matches_dns(ip, dns_records);
+//    bool ip_matches_dns = check_ip_matches_dns(ip, dns_records);
 
-    if (!ip_matches_dns) {
+//    if (!ip_matches_dns) {
       printf("  🔄 11.B.1. El registro DNS no coincide con la IP actual, actualizando registro DNS de W.X.Y.Z a A.B.C.D...\n");
-      update_dns_record(domain, zone_id, Env.CLOUDFLARE_API_KEY, ip);
+//      update_dns_record(domain, zone_id, Env.CLOUDFLARE_API_KEY, ip);
 
       printf("  ⏳ 11.B.2. Esperando propagación DNS...\n");
-      wait_for_dns_propagation(Env.PROPAGATION_DELAY_SECONDS);
+//      wait_for_dns_propagation(Env.PROPAGATION_DELAY_SECONDS);
 
       printf("  🔍 11.B.3. Verificando actualizaciones...\n");
-      bool ip_matches_updated_dns = check_ip_matches_dns(ip, dns_records);
+//      bool ip_matches_updated_dns = check_ip_matches_dns(ip, dns_records);
       printf("Pasar esto un for i in attempts; if not matches, update until limit reached en vez de un if-else...\n");
 
       printf("  ✅ 11.B.4. ¡Registro DNS actualizado exitosamente!\n");
 
-    } else {
-      printf("  ✅ 11.A. El registro DNS coincide con la IP actual, saltando pasos...\n");
-      goto cleanup;
+//    } else {
+      printf("  ✅ 11.A. El registro DNS coincide con la IP actual\n");
+
       printf("🚪 13. Saliendo... || 💤 Durmiendo...\n");
-    }
+//    }
   }
 
   printf("\n-------------==============STUFF DONE==============-------------\n");

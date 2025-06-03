@@ -71,3 +71,4 @@ bin
 !example.env
 
 .compile_count
+/.clion-env
