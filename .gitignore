@@ -72,3 +72,4 @@ bin
 
 .compile_count
 /.clion-env
+.build
