@@ -4,8 +4,9 @@
  * Memory-safe allocation with tracking, retries, and automatic cleanup.
  */
 
-#include "memory_module.h"
-#include "debug_module.h"
+#include "../include/memory_management.h"
+#include "../../include/debug_utils.h"
+#include "../include/messages.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -59,8 +60,7 @@ int memory_init(void) {
   memory_state.cleanup_in_progress = 0;
   memory_state.initialized = 1;
 
-  DEBUG_LOG("Memory module initialized (tracking: %s)",
-            MEMORY_TRACKING_ENABLED ? "enabled" : "disabled");
+  DEBUG_LOG(MSG_DEBUG_MODULE_INIT, "memory");
 
   return MEMORY_SUCCESS;
 }
@@ -73,12 +73,12 @@ void memory_cleanup(void) {
 
   memory_state.cleanup_in_progress = 1;
 
-  DEBUG_LOG("Memory module cleanup starting...");
+  DEBUG_LOG(MSG_DEBUG_MODULE_CLEANUP, "memory");
 
   /* Check for memory leaks */
   int leak_count = memory_check_leaks();
   if (leak_count > 0) {
-    DEBUG_WARN("Memory leaks detected: %d blocks", leak_count);
+    DEBUG_WARN(MSG_WARN_MEMORY_LEAKS, leak_count);
   }
 
   /* Free all remaining blocks */
@@ -90,13 +90,13 @@ void memory_cleanup(void) {
 #endif
 
   memory_state.initialized = 0;
-  DEBUG_LOG("Memory module cleanup completed");
+  DEBUG_LOG(MSG_SUCCESS_CLEANUP_COMPLETED);
 }
 
 /* Safe malloc with retries */
 void* memory_alloc(size_t size) {
   if (!memory_state.initialized) {
-    FATAL_ERROR("Memory module not initialized");
+    FATAL_ERROR(MSG_FATAL_MODULE_NOT_INIT, "Memory");
     return NULL;
   }
 
@@ -176,7 +176,7 @@ void* memory_calloc(size_t count, size_t size) {
 /* Safe realloc with retries */
 void* memory_realloc(void *ptr, size_t size) {
   if (!memory_state.initialized) {
-    FATAL_ERROR("Memory module not initialized");
+    FATAL_ERROR(MSG_FATAL_MODULE_NOT_INIT, "Memory");
     return NULL;
   }
 
@@ -243,7 +243,7 @@ void memory_free(void *ptr) {
   }
 
   if (!memory_state.initialized) {
-    FATAL_ERROR("Memory module not initialized");
+    FATAL_ERROR(MSG_FATAL_MODULE_NOT_INIT, "Memory");
     return;
   }
 
@@ -262,9 +262,9 @@ void memory_free(void *ptr) {
     }
 
     /* Fill with debug pattern */
-    #if DEBUG_ENABLED
+#if DEBUG_ENABLED
     memset(ptr, MEMORY_FILL_FREED, block->size);
-    #endif
+#endif
 
     /* Update statistics */
     memory_state.stats.current_allocated -= block->size;
@@ -327,10 +327,10 @@ void memory_print_stats(void) {
     return;
   }
 
-  DEBUG_INFO("Memory Statistics:");
-  DEBUG_INFO("  Total allocated: %zu bytes", memory_state.stats.total_allocated);
-  DEBUG_INFO("  Current allocated: %zu bytes", memory_state.stats.current_allocated);
-  DEBUG_INFO("  Peak allocated: %zu bytes", memory_state.stats.peak_allocated);
+  DEBUG_INFO(MSG_DEBUG_MEMORY_STATS,
+             memory_state.stats.total_allocated,
+             memory_state.stats.current_allocated,
+             memory_state.stats.peak_allocated);
   DEBUG_INFO("  Allocations: %zu", memory_state.stats.allocation_count);
   DEBUG_INFO("  Deallocations: %zu", memory_state.stats.deallocation_count);
   DEBUG_INFO("  Failed allocations: %zu", memory_state.stats.failed_allocations);
@@ -348,8 +348,8 @@ int memory_check_leaks(void) {
     memory_block_t *current = memory_state.head;
 
     while (current) {
-        DEBUG_WARN("Memory leak: %zu bytes at %p (allocated at %s:%d)",
-                  current->size, current->ptr, current->file, current->line);
+        DEBUG_WARN(MSG_DEBUG_MEMORY_LEAK,
+                   current->size, current->ptr, current->file, current->line);
         leak_count++;
         current = current->next;
     }
@@ -373,9 +373,9 @@ void memory_free_all(void) {
         memory_block_t *next = current->next;
 
         if (current->ptr) {
-            #if DEBUG_ENABLED
+#if DEBUG_ENABLED
             memset(current->ptr, MEMORY_FILL_FREED, current->size);
-            #endif
+#endif
             free(current->ptr);
         }
 

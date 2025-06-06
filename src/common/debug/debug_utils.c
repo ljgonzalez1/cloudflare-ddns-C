@@ -5,12 +5,14 @@
  * Can be completely compiled out for release builds.
  */
 
-#include "debug_module.h"
+#include "../../include/debug_utils.h"
+#include "../../http_client/include/messages.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 /* Module state */
 static struct {
@@ -81,7 +83,7 @@ int debug_init(int enabled) {
 
 #if DEBUG_ENABLED
   if (enabled) {
-        DEBUG_LOG("Debug module initialized (level: %d)", debug_state.level);
+        DEBUG_LOG(MSG_DEBUG_MODULE_INIT, "debug");
     }
 #endif
 
@@ -96,7 +98,7 @@ void debug_cleanup(void) {
 
 #if DEBUG_ENABLED
   if (debug_state.enabled) {
-        DEBUG_LOG("Debug module cleanup");
+        DEBUG_LOG(MSG_DEBUG_MODULE_CLEANUP, "debug");
     }
 #endif
 

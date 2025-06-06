@@ -5,147 +5,145 @@
  * All functionality is delegated to specialized modules.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-/* Global configuration */
-#include "global_config.h"
-
-/* Module headers */
-#include "settings.h"
-#include "debug_module.h"
-#include "memory_module.h"
-#include "signals_module.h"
-#include "http_module.h"
-#include "config_module.h"
+#include "include/http_client.h"
 
 /* Program information */
 static void print_version(void) {
-  printf("%s v%s\n", PROJECT_NAME, PROJECT_VERSION);
-  printf("Using %s (MIT-compatible)\n", TLS_LIBRARY);
-  printf("License: %s\n", PROJECT_LICENSE);
+  printf(MSG_VERSION_INFO, PROJECT_NAME, PROJECT_VERSION, TLS_LIBRARY, PROJECT_LICENSE);
 }
 
 /* Usage information */
 static void print_usage(const char *program_name) {
-  printf("Usage: %s [OPTIONS] <URL>\n\n", program_name);
-  printf("Options:\n");
-  printf("  -h, --help     Show this help message\n");
-  printf("  -v, --version  Show version information\n");
-  printf("  -d, --debug    Enable debug output\n");
-  printf("  -q, --quiet    Disable all output except errors\n");
-  printf("\n");
-  printf("Examples:\n");
-  printf("  %s https://www.google.com\n", program_name);
-  printf("  %s --debug https://httpbin.org/get\n", program_name);
-  printf("  %s --quiet http://httpbin.org/ip\n", program_name);
+  printf(MSG_USAGE_HEADER, program_name);
+  printf(MSG_USAGE_OPTIONS);
+  printf(MSG_USAGE_EXAMPLES, program_name, program_name, program_name, program_name);
 }
 
 /* Argument parsing */
 typedef struct {
   const char *url;
-  int debug_enabled;
-  int quiet_mode;
-  int show_help;
-  int show_version;
-} arguments_t;
+  const char *method;
+  const char *output_file;
+  const char **headers;
+  int header_count;
+  const char *body_data;
+  bool debug_enabled;
+  bool quiet_mode;
+  bool show_help;
+  bool show_version;
+  bool insecure;
+} program_args_t;
 
-static int parse_arguments(int argc, char *argv[], arguments_t *args) {
+static int parse_arguments(int argc, char *argv[], program_args_t *args) {
   /* Initialize arguments */
-  memset(args, 0, sizeof(arguments_t));
+  memset(args, 0, sizeof(program_args_t));
+  args->method = "GET"; /* Default method */
 
   /* Parse command line arguments */
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-      args->show_help = 1;
+      args->show_help = true;
     } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
-      args->show_version = 1;
+      args->show_version = true;
     } else if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--debug") == 0) {
-      args->debug_enabled = 1;
+      args->debug_enabled = true;
     } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
-      args->quiet_mode = 1;
+      args->quiet_mode = true;
+    } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--insecure") == 0) {
+      args->insecure = true;
+    } else if ((strcmp(argv[i], "-X") == 0 || strcmp(argv[i], "--request") == 0) && i + 1 < argc) {
+      args->method = argv[++i];
+    } else if ((strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) && i + 1 < argc) {
+      args->output_file = argv[++i];
+    } else if ((strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--data") == 0) && i + 1 < argc) {
+      args->body_data = argv[++i];
     } else if (argv[i][0] == '-') {
-      fprintf(stderr, "Unknown option: %s\n", argv[i]);
-      return -1;
+      fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_UNKNOWN_OPTION, argv[i]);
+      return ERROR_INVALID_ARGS;
     } else if (args->url == NULL) {
       args->url = argv[i];
     } else {
-      fprintf(stderr, "Multiple URLs specified. Only one URL is allowed.\n");
-      return -1;
+      fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_MULTIPLE_URLS);
+      return ERROR_INVALID_ARGS;
     }
   }
 
-  return 0;
+  return SUCCESS;
 }
 
 /* Validate arguments */
-static int validate_arguments(const arguments_t *args) {
+static int validate_arguments(const program_args_t *args) {
   /* Check for help or version flags */
   if (args->show_help || args->show_version) {
-    return 0;
+    return SUCCESS;
   }
 
   /* URL is required */
   if (args->url == NULL) {
-    fprintf(stderr, "Error: URL is required\n");
-    return -1;
+    fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_URL_REQUIRED);
+    return ERROR_INVALID_ARGS;
   }
 
   /* Basic URL validation */
   if (strncmp(args->url, "http://", 7) != 0 &&
       strncmp(args->url, "https://", 8) != 0) {
-    fprintf(stderr, "Error: URL must start with http:// or https://\n");
-    return -1;
+    fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_INVALID_URL);
+    return ERROR_INVALID_ARGS;
   }
 
   /* Conflicting flags */
   if (args->debug_enabled && args->quiet_mode) {
-    fprintf(stderr, "Error: --debug and --quiet flags are mutually exclusive\n");
-    return -1;
+    fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_CONFLICTING_FLAGS);
+    return ERROR_INVALID_ARGS;
   }
 
-  return 0;
+  /* Validate HTTP method */
+  if (http_string_to_method(args->method) < 0) {
+    fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_INVALID_METHOD, args->method);
+    return ERROR_INVALID_ARGS;
+  }
+
+  return SUCCESS;
 }
 
 /* Initialize all modules */
-static int initialize_modules(const arguments_t *args) {
+static int initialize_all_modules(const program_args_t *args) {
   /* Initialize debug module first */
   if (debug_init(args->debug_enabled || DEBUG_ENABLED) != 0) {
-    fprintf(stderr, "Failed to initialize debug module\n");
-    return -1;
+    fprintf(stderr, MSG_ERROR_PREFIX MSG_ERROR_INIT_FAILED, "debug");
+    return ERROR_GENERAL;
   }
 
-  DEBUG_LOG("Initializing modules...");
+  DEBUG_LOG(MSG_INFO_INITIALIZING);
 
   /* Initialize memory module */
   if (memory_init() != 0) {
-    DEBUG_ERROR("Failed to initialize memory module");
-    return -1;
+    DEBUG_ERROR(MSG_ERROR_INIT_FAILED, "memory");
+    return ERROR_MEMORY;
   }
 
   /* Initialize signal handling */
   if (signals_init() != 0) {
-    DEBUG_ERROR("Failed to initialize signals module");
+    DEBUG_ERROR(MSG_ERROR_INIT_FAILED, "signals");
     memory_cleanup();
-    return -1;
+    return ERROR_GENERAL;
   }
 
   /* Initialize HTTP module */
   if (http_init() != 0) {
-    DEBUG_ERROR("Failed to initialize HTTP module");
+    DEBUG_ERROR(MSG_ERROR_INIT_FAILED, "HTTP");
     signals_cleanup();
     memory_cleanup();
-    return -1;
+    return ERROR_HTTP;
   }
 
   DEBUG_LOG("All modules initialized successfully");
-  return 0;
+  return SUCCESS;
 }
 
 /* Cleanup all modules */
-static void cleanup_modules(void) {
-  DEBUG_LOG("Cleaning up modules...");
+static void cleanup_all_modules(void) {
+  DEBUG_LOG(MSG_INFO_CLEANING_UP);
 
   http_cleanup();
   signals_cleanup();
@@ -153,13 +151,80 @@ static void cleanup_modules(void) {
   debug_cleanup();
 }
 
+/* Signal cleanup callback */
+static void signal_cleanup_callback(void) {
+  cleanup_all_modules();
+}
+
+/* Perform HTTP request */
+static int perform_http_request(const program_args_t *args) {
+  /* Create HTTP request */
+  http_method_t method = (http_method_t)http_string_to_method(args->method);
+  http_request_t *request = http_create_request(args->url, method);
+  if (!request) {
+    DEBUG_ERROR(MSG_ERROR_MEMORY_ALLOCATION);
+    return ERROR_MEMORY;
+  }
+
+  /* Set request options */
+  request->verify_ssl = !args->insecure;
+
+  /* Add body data if provided */
+  if (args->body_data) {
+    if (http_set_body(request, args->body_data, strlen(args->body_data)) != SUCCESS) {
+      DEBUG_ERROR("Failed to set request body");
+      http_free_request(request);
+      return ERROR_MEMORY;
+    }
+  }
+
+  /* Show insecure warning */
+  if (args->insecure) {
+    DEBUG_WARN(MSG_WARN_INSECURE_CONNECTION);
+  }
+
+  DEBUG_LOG(MSG_INFO_MAKING_REQUEST, args->url);
+
+  /* Perform request */
+  http_response_t response = {0};
+  int result = http_request_advanced(request, &response);
+
+  if (result == SUCCESS) {
+    DEBUG_LOG(MSG_SUCCESS_REQUEST_COMPLETED);
+
+    /* Output response */
+    FILE *output = stdout;
+    if (args->output_file) {
+      output = fopen(args->output_file, "w");
+      if (!output) {
+        DEBUG_ERROR(MSG_ERROR_FILE_OPEN, args->output_file);
+        output = stdout;
+      }
+    }
+
+    http_print_response(&response, output);
+
+    if (output != stdout) {
+      fclose(output);
+    }
+  } else {
+    DEBUG_ERROR(MSG_ERROR_HTTP_REQUEST_FAILED);
+  }
+
+  /* Cleanup */
+  http_free_request(request);
+  http_free_response(&response);
+
+  return result;
+}
+
 /* Main function */
 int main(int argc, char *argv[]) {
-  arguments_t args;
+  program_args_t args;
   int result = EXIT_SUCCESS;
 
   /* Parse command line arguments */
-  if (parse_arguments(argc, argv, &args) != 0) {
+  if (parse_arguments(argc, argv, &args) != SUCCESS) {
     print_usage(argv[0]);
     return EXIT_FAILURE;
   }
@@ -176,15 +241,18 @@ int main(int argc, char *argv[]) {
   }
 
   /* Validate arguments */
-  if (validate_arguments(&args) != 0) {
+  if (validate_arguments(&args) != SUCCESS) {
     print_usage(argv[0]);
     return EXIT_FAILURE;
   }
 
   /* Initialize all modules */
-  if (initialize_modules(&args) != 0) {
+  if (initialize_all_modules(&args) != SUCCESS) {
     return EXIT_FAILURE;
   }
+
+  /* Register signal cleanup callback */
+  signals_register_cleanup(signal_cleanup_callback);
 
   /* Set quiet mode if requested */
   if (args.quiet_mode) {
@@ -192,16 +260,11 @@ int main(int argc, char *argv[]) {
   }
 
   /* Perform HTTP request */
-  DEBUG_LOG("Making HTTP request to: %s", args.url);
-
-  if (http_request(args.url) != 0) {
-    DEBUG_ERROR("HTTP request failed");
+  if (perform_http_request(&args) != SUCCESS) {
     result = EXIT_FAILURE;
-  } else {
-    DEBUG_LOG("HTTP request completed successfully");
   }
 
   /* Cleanup and exit */
-  cleanup_modules();
+  cleanup_all_modules();
   return result;
 }

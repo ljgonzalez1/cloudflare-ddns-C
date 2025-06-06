@@ -5,11 +5,13 @@
  * Includes retry mechanisms and automatic cleanup on program termination.
  */
 
-#ifndef MEMORY_MODULE_H
-#define MEMORY_MODULE_H
+#pragma once
+
+#ifndef MEMORY_MANAGEMENT_H
+#define MEMORY_MANAGEMENT_H
 
 #include <stddef.h>
-#include "../../include/settings.h"
+#include "settings.h"
 
 /* Memory statistics structure */
 typedef struct {
@@ -26,33 +28,25 @@ typedef struct {
 
 /* Module lifecycle */
 int memory_init(void);
-
 void memory_cleanup(void);
 
 /* Memory allocation functions with tracking and retries */
 void *memory_alloc(size_t size);
-
 void *memory_calloc(size_t count, size_t size);
-
 void *memory_realloc(void *ptr, size_t size);
-
 void memory_free(void *ptr);
 
 /* String utilities with memory tracking */
 char *memory_strdup(const char *str);
-
 char *memory_strndup(const char *str, size_t n);
 
 /* Memory statistics and debugging */
 void memory_get_stats(memory_stats_t *stats);
-
 void memory_print_stats(void);
-
 int memory_check_leaks(void);
 
 /* Memory validation */
 int memory_is_valid_ptr(const void *ptr);
-
 size_t memory_get_size(const void *ptr);
 
 /* Bulk operations */
@@ -60,7 +54,6 @@ void memory_free_all(void); /* Emergency cleanup - frees all tracked memory */
 
 /* Configuration */
 void memory_set_retry_count(int count);
-
 void memory_set_retry_delay(int delay_us);
 
 /* Helper macros for easier use */
@@ -89,4 +82,4 @@ void memory_set_retry_delay(int delay_us);
 #define MEMORY_ERROR_DOUBLE_FREE -4
 #define MEMORY_ERROR_NOT_TRACKED -5
 
-#endif /* MEMORY_MODULE_H */
+#endif /* MEMORY_MANAGEMENT_H */

@@ -5,11 +5,13 @@
  * Supports different log levels and can be completely disabled for release builds.
  */
 
-#ifndef DEBUG_MODULE_H
-#define DEBUG_MODULE_H
+#pragma once
+
+#ifndef DEBUG_UTILS_H
+#define DEBUG_UTILS_H
 
 #include <stdio.h>
-#include "settings.h"
+#include "../http_client/include/settings.h"
 
 /* Debug levels */
 typedef enum {
@@ -91,4 +93,4 @@ void debug_log_internal(debug_level_t level, const char *file, int line,
 #define DEBUG_SIGNAL(signum) do { } while(0)
 #endif
 
-#endif /* DEBUG_MODULE_H */
+#endif /* DEBUG_UTILS_H */

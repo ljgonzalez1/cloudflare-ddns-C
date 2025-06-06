@@ -5,10 +5,12 @@
  * Ensures proper cleanup of resources when receiving termination signals.
  */
 
-#ifndef SIGNALS_MODULE_H
-#define SIGNALS_MODULE_H
+#pragma once
 
-#include "../../include/settings.h"
+#ifndef SIGNAL_PROCESSING_H
+#define SIGNAL_PROCESSING_H
+
+#include "settings.h"
 
 /* Signal handling configuration */
 #if SIGNAL_HANDLING_ENABLED
@@ -39,26 +41,18 @@ int signals_unblock_termination(void);
 
 /* No-op versions when signal handling is disabled */
 static inline int signals_init(void) { return 0; }
-
 static inline void signals_cleanup(void) {}
-
 static inline int signals_register_cleanup(signal_cleanup_callback_t callback) {
-  (void) callback;
-  return 0;
+    (void)callback;
+    return 0;
 }
-
-static inline void signals_handle_termination(int signum) { (void) signum; }
-
+static inline void signals_handle_termination(int signum) { (void)signum; }
 static inline int signals_cleanup_in_progress(void) { return 0; }
-
 static inline int signals_block_all(void) { return 0; }
-
 static inline int signals_unblock_all(void) { return 0; }
-
 static inline int signals_block_termination(void) { return 0; }
-
 static inline int signals_unblock_termination(void) { return 0; }
 
 #endif /* SIGNAL_HANDLING_ENABLED */
 
-#endif /* SIGNALS_MODULE_H */
+#endif /* SIGNAL_PROCESSING_H */
