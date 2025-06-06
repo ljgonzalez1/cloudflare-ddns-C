@@ -1,3 +1,6 @@
 [submodule "src/lib/mbedTLS"]
 	path = src/lib/mbedTLS
 	url = https://github.com/Mbed-TLS/mbedtls.git
+[submodule "src/http_client/lib/LibreSSL"]
+	path = src/http_client/lib/LibreSSL
+	url = https://github.com/libressl-portable/portable.git

@@ -1,0 +1,481 @@
+#!/bin/bash
+# Professional Configuration Script for MIT-Compatible HTTP Client Project
+# Handles LibreSSL setup, OS detection, and project configuration
+
+set -e
+
+# Project information
+PROJECT_NAME="HTTP Client Project"
+PROJECT_VERSION="1.0.0"
+MIN_LIBRESSL_VERSION="3.8.0"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Directories
+SRC_DIR="src"
+LIBRESSL_DIR="$SRC_DIR/http_client/lib/LibreSSL"
+CONFIG_FILE="config.mk"
+
+# Logging functions
+log_header() {
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║${NC} $1"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+}
+
+log_info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+log_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}❌ $1${NC}"
+    exit 1
+}
+
+log_step() {
+    echo -e "${PURPLE}🔧 $1${NC}"
+}
+
+# Main header
+log_header "$PROJECT_NAME v$PROJECT_VERSION - Configuration"
+
+# Validate environment
+validate_environment() {
+    log_step "Validating environment..."
+
+    # Check if we're in project root
+    if [[ ! -f "configure" ]] || [[ ! -d "$SRC_DIR" ]]; then
+        log_error "Please run ./configure from the project root directory"
+    fi
+
+    # Check for required commands
+    local required_commands=("git" "gcc" "make")
+    local missing_commands=()
+
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_commands+=("$cmd")
+        fi
+    done
+
+    if [[ ${#missing_commands[@]} -gt 0 ]]; then
+        log_error "Missing required commands: ${missing_commands[*]}. Please install them first."
+    fi
+
+    log_success "Environment validation passed"
+}
+
+# Detect operating system
+detect_os() {
+    log_step "Detecting operating system..."
+
+    OS=""
+    DISTRO=""
+    ARCH=$(uname -m)
+
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        OS="linux"
+        if [[ -f /etc/os-release ]]; then
+            # shellcheck source=/dev/null
+            . /etc/os-release
+            DISTRO="$ID"
+        elif [[ -f /etc/debian_version ]]; then
+            DISTRO="debian"
+        elif [[ -f /etc/redhat-release ]]; then
+            DISTRO="redhat"
+        else
+            DISTRO="unknown"
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        OS="macos"
+        DISTRO="macos"
+    else
+        log_warning "Unknown OS: $OSTYPE, assuming Linux"
+        OS="linux"
+        DISTRO="unknown"
+    fi
+
+    log_success "Detected: $OS ($DISTRO) on $ARCH"
+
+    # Validate supported architecture
+    if [[ "$ARCH" != "x86_64" ]] && [[ "$ARCH" != "aarch64" ]] && [[ "$ARCH" != "arm64" ]]; then
+        log_warning "Untested architecture: $ARCH. Build may fail."
+    fi
+}
+
+# Setup LibreSSL
+setup_libressl() {
+    log_step "Setting up LibreSSL..."
+
+    # Check if LibreSSL directory exists
+    if [[ ! -d "$LIBRESSL_DIR" ]]; then
+        log_info "LibreSSL directory not found. Setting up as git submodule..."
+
+        # Create the directory structure
+        mkdir -p "$(dirname "$LIBRESSL_DIR")"
+
+        # Clone LibreSSL as submodule
+        if git submodule add https://github.com/libressl-portable/portable.git "$LIBRESSL_DIR" 2>/dev/null; then
+            log_success "LibreSSL added as git submodule"
+        else
+            log_info "LibreSSL submodule already exists, updating..."
+            git submodule update --init --recursive
+        fi
+    else
+        log_info "LibreSSL directory found, checking status..."
+
+        # Check if it's a proper git repository
+        if [[ ! -d "$LIBRESSL_DIR/.git" ]] && [[ ! -f "$LIBRESSL_DIR/.git" ]]; then
+            log_error "LibreSSL directory exists but is not a git submodule. Please remove it and run configure again."
+        fi
+
+        # Update submodule
+        log_info "Updating LibreSSL submodule..."
+        git submodule update --init --recursive
+    fi
+
+    # Validate LibreSSL source
+    if [[ ! -f "$LIBRESSL_DIR/configure.ac" ]] && [[ ! -f "$LIBRESSL_DIR/configure.in" ]]; then
+        log_error "LibreSSL source appears incomplete. Try: git submodule update --init --recursive"
+    fi
+
+    # Check LibreSSL version
+    local libressl_version=""
+    if [[ -f "$LIBRESSL_DIR/VERSION" ]]; then
+        libressl_version=$(cat "$LIBRESSL_DIR/VERSION")
+        log_info "LibreSSL version: $libressl_version"
+    elif [[ -f "$LIBRESSL_DIR/include/openssl/opensslv.h" ]]; then
+        libressl_version=$(grep -E "LIBRESSL_VERSION_TEXT" "$LIBRESSL_DIR/include/openssl/opensslv.h" | cut -d'"' -f2 | cut -d' ' -f2 || echo "unknown")
+        log_info "LibreSSL version: $libressl_version"
+    else
+        log_warning "Could not determine LibreSSL version"
+    fi
+
+    log_success "LibreSSL setup completed"
+}
+
+# Check build tools
+check_build_tools() {
+    log_step "Checking build tools..."
+
+    local tools=("autoconf" "automake" "libtool" "pkg-config")
+    local missing_tools=()
+    local installable_tools=()
+
+    for tool in "${tools[@]}"; do
+        if ! command -v "$tool" &> /dev/null; then
+            missing_tools+=("$tool")
+            case "$DISTRO" in
+                ubuntu|debian)
+                    installable_tools+=("$tool")
+                    ;;
+                alpine)
+                    installable_tools+=("$tool")
+                    ;;
+                fedora|centos|rhel)
+                    installable_tools+=("$tool")
+                    ;;
+                arch|manjaro)
+                    [[ "$tool" == "libtool" ]] && installable_tools+=("libtool") || installable_tools+=("$tool")
+                    ;;
+            esac
+        fi
+    done
+
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        log_warning "Missing build tools: ${missing_tools[*]}"
+        log_info "Run 'make install-deps' to install them automatically"
+
+        # Show manual installation commands
+        case "$DISTRO" in
+            ubuntu|debian)
+                log_info "Manual install: sudo apt-get install ${installable_tools[*]}"
+                ;;
+            alpine)
+                log_info "Manual install: sudo apk add ${installable_tools[*]}"
+                ;;
+            fedora|centos|rhel)
+                log_info "Manual install: sudo dnf install ${installable_tools[*]}"
+                ;;
+            arch|manjaro)
+                log_info "Manual install: sudo pacman -S ${installable_tools[*]}"
+                ;;
+        esac
+    else
+        log_success "All build tools found"
+    fi
+}
+
+# Generate configuration
+generate_config() {
+    log_step "Generating configuration..."
+
+    cat > "$CONFIG_FILE" << EOF
+# Generated configuration for $PROJECT_NAME
+# Generated on: $(date)
+# Do not edit manually - regenerate with ./configure
+
+# Project information
+PROJECT_NAME := $PROJECT_NAME
+PROJECT_VERSION := $PROJECT_VERSION
+
+# System information
+TARGET_OS := $OS
+TARGET_DISTRO := $DISTRO
+TARGET_ARCH := $ARCH
+
+# Paths
+LIBRESSL_DIR := $LIBRESSL_DIR
+
+# Build configuration
+CC := gcc
+CONFIGURE_FLAGS := --enable-static --disable-shared --disable-tests --disable-apps
+
+# MIT License compatibility confirmed
+LICENSE_COMPATIBLE := 1
+
+EOF
+
+    log_success "Configuration saved to $CONFIG_FILE"
+}
+
+# Create directory structure
+create_directories() {
+    log_step "Creating directory structure..."
+
+    local dirs=(
+        "bin"
+        "objects"
+        "$SRC_DIR/include"
+        "$SRC_DIR/common/utils"
+        "$SRC_DIR/http_client/include"
+        "$SRC_DIR/http_client/main"
+        "$SRC_DIR/http_client/http"
+        "$SRC_DIR/http_client/memory"
+        "$SRC_DIR/http_client/signals"
+        "$SRC_DIR/http_client/debug"
+        "$SRC_DIR/http_client/config"
+        "$SRC_DIR/http_client/lib"
+    )
+
+    for dir in "${dirs[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            mkdir -p "$dir"
+            log_info "Created directory: $dir"
+        fi
+    done
+
+    log_success "Directory structure created"
+}
+
+# Create example environment file
+create_example_env() {
+    log_step "Creating example environment file..."
+
+    if [[ ! -f "example.env" ]]; then
+        cat > "example.env" << EOF
+# Example Environment Configuration for $PROJECT_NAME
+# Copy this file to .env and modify as needed
+
+# Debug settings
+DEBUG_ENABLED=0
+DEBUG_LEVEL=1
+DEBUG_OUTPUT=stdout
+
+# HTTP Client settings
+HTTP_TIMEOUT=30
+HTTP_MAX_REDIRECTS=5
+HTTP_USER_AGENT="$PROJECT_NAME/$PROJECT_VERSION"
+
+# TLS settings
+TLS_VERIFY_PEER=1
+TLS_VERIFY_HOST=1
+TLS_MIN_VERSION=1.2
+
+# Build settings
+BUILD_STATIC=1
+BUILD_OPTIMIZATION=3
+
+# LibreSSL settings
+LIBRESSL_NO_ASM=0
+LIBRESSL_DISABLE_APPS=1
+LIBRESSL_DISABLE_TESTS=1
+EOF
+        log_success "Created example.env"
+    else
+        log_info "example.env already exists"
+    fi
+}
+
+# Generate initial headers
+generate_headers() {
+    log_step "Generating initial header files..."
+
+    # Global settings header
+    if [[ ! -f "$SRC_DIR/include/global_config.h" ]]; then
+        cat > "$SRC_DIR/include/global_config.h" << EOF
+#ifndef GLOBAL_CONFIG_H
+#define GLOBAL_CONFIG_H
+
+/*
+ * Global Configuration for $PROJECT_NAME
+ * Generated by configure script
+ */
+
+#define PROJECT_NAME "$PROJECT_NAME"
+#define PROJECT_VERSION "$PROJECT_VERSION"
+#define PROJECT_LICENSE "MIT"
+
+/* Build information */
+#define BUILD_OS "$OS"
+#define BUILD_DISTRO "$DISTRO"
+#define BUILD_ARCH "$ARCH"
+
+/* MIT License compatibility */
+#define LICENSE_MIT_COMPATIBLE 1
+
+/* LibreSSL configuration */
+#define USING_LIBRESSL 1
+#define TLS_LIBRARY "LibreSSL"
+
+#endif /* GLOBAL_CONFIG_H */
+EOF
+        log_success "Created global_config.h"
+    fi
+
+    # HTTP Client specific settings
+    if [[ ! -f "$SRC_DIR/http_client/include/settings.h" ]]; then
+        cat > "$SRC_DIR/http_client/include/settings.h" << EOF
+#ifndef HTTP_CLIENT_SETTINGS_H
+#define HTTP_CLIENT_SETTINGS_H
+
+/*
+ * HTTP Client Settings
+ * Modify these values to configure the client behavior
+ */
+
+/* Debug configuration */
+#ifndef DEBUG_MODE
+#define DEBUG_MODE 0
+#endif
+
+#define DEBUG_ENABLED DEBUG_MODE
+#define DEBUG_LEVEL 1
+#define DEBUG_PREFIX "[HTTP_CLIENT]"
+
+/* HTTP configuration */
+#define HTTP_DEFAULT_TIMEOUT 30
+#define HTTP_DEFAULT_MAX_REDIRECTS 5
+#define HTTP_DEFAULT_USER_AGENT PROJECT_NAME "/" PROJECT_VERSION
+#define HTTP_MAX_RESPONSE_SIZE (10 * 1024 * 1024) /* 10MB */
+
+/* TLS configuration */
+#define TLS_VERIFY_PEER 1
+#define TLS_VERIFY_HOST 1
+#define TLS_MIN_VERSION_STR "TLSv1.2"
+
+/* Memory configuration */
+#define MEMORY_TRACKING_ENABLED 1
+#define MEMORY_MAX_RETRIES 5
+#define MEMORY_RETRY_DELAY_US 100000
+
+/* Signal handling */
+#define SIGNAL_HANDLING_ENABLED 1
+
+#endif /* HTTP_CLIENT_SETTINGS_H */
+EOF
+        log_success "Created http_client settings.h"
+    fi
+}
+
+# Final validation
+final_validation() {
+    log_step "Performing final validation..."
+
+    # Check critical files exist
+    local critical_files=(
+        "$LIBRESSL_DIR/configure.ac"
+        "$CONFIG_FILE"
+        "Makefile"
+    )
+
+    for file in "${critical_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            log_error "Critical file missing: $file"
+        fi
+    done
+
+    # Check directories exist
+    local critical_dirs=(
+        "$SRC_DIR/http_client"
+        "bin"
+        "objects"
+    )
+
+    for dir in "${critical_dirs[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            log_error "Critical directory missing: $dir"
+        fi
+    done
+
+    log_success "Final validation passed"
+}
+
+# Print summary
+print_summary() {
+    log_header "Configuration Summary"
+
+    echo -e "${CYAN}Project:${NC}           $PROJECT_NAME v$PROJECT_VERSION"
+    echo -e "${CYAN}Target OS:${NC}         $OS ($DISTRO) on $ARCH"
+    echo -e "${CYAN}LibreSSL:${NC}          $LIBRESSL_DIR"
+    echo -e "${CYAN}Configuration:${NC}     $CONFIG_FILE"
+    echo -e "${CYAN}MIT Compatible:${NC}    ✅ Yes"
+    echo ""
+    echo -e "${YELLOW}Next steps:${NC}"
+    echo "  1. make install-deps    # Install system dependencies"
+    echo "  2. make                 # Build project (release mode)"
+    echo "  3. make --debug         # Build project (debug mode)"
+    echo "  4. make test            # Run tests"
+    echo ""
+    echo -e "${YELLOW}Advanced usage:${NC}"
+    echo "  make --debug --scratch        # Clean + debug build"
+    echo "  make --scratch http_client    # Clean + build specific binary"
+    echo "  make help                     # Show all available targets"
+    echo ""
+    log_success "Configuration complete! 🎉"
+}
+
+# Main execution
+main() {
+    validate_environment
+    detect_os
+    setup_libressl
+    check_build_tools
+    create_directories
+    generate_config
+    create_example_env
+    generate_headers
+    final_validation
+    print_summary
+}
+
+# Handle script interruption
+trap 'log_error "Configuration interrupted"' INT TERM
+
+# Run main function
+main "$@"
