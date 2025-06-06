@@ -1,3 +1,5 @@
+// src/http_get_post_request/main.c
+
 #define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,11 +21,6 @@
  * Ejemplo:
  *   https://ejemplo.com/ruta -> host="ejemplo.com", path="/ruta"
  *   https://ejemplo.com       -> host="ejemplo.com", path="/"
- *
- * @param url  Cadena con la URL completa.
- * @param host Puntero donde se guardará el host (alocado con strdup/malloc).
- * @param path Puntero donde se guardará el path (alocado con strdup).
- * @return     1 si todo OK, 0 en caso de error.
  */
 static int parse_url(const char *url, char **host, char **path) {
   if (strncmp(url, "https://", 8) != 0) {
@@ -163,7 +160,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // SNI
+  // SNI: enviar nombre del servidor
   if (!SSL_set_tlsext_host_name(ssl, host)) {
     ERR_print_errors_fp(stderr);
     SSL_free(ssl);
@@ -185,17 +182,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Construir la petición
+  // Construir la petición HTTP
   char request[4096];
   int offset = 0;
 
   if (strcmp(method, "get") == 0) {
-    // GET
     offset += snprintf(request + offset, sizeof(request) - offset,
                        "GET %s HTTP/1.1\r\n"
                        "Host: %s\r\n", path, host);
   } else {
-    // POST
     offset += snprintf(request + offset, sizeof(request) - offset,
                        "POST %s HTTP/1.1\r\n"
                        "Host: %s\r\n", path, host);
@@ -208,7 +203,7 @@ int main(int argc, char **argv) {
   }
 
   if (strcmp(method, "post") == 0) {
-    // Siempre añadir Content-Length (0 si data == NULL)
+    // Siempre añadir Content-Length (0 si no hay data)
     offset += snprintf(request + offset, sizeof(request) - offset,
                        "Content-Length: %zu\r\n", data ? data_len : 0);
   }
@@ -229,8 +224,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Enviar cuerpo si es POST y data existe
-  if (strcmp(method, "post") == 0 && data && data_len > 0) {
+  // Enviar cuerpo si es POST y hay data
+  if (strcmp(method, "post") == 0 && data_len > 0) {
     if (SSL_write(ssl, data, data_len) <= 0) {
       ERR_print_errors_fp(stderr);
       SSL_shutdown(ssl);
@@ -256,6 +251,5 @@ int main(int argc, char **argv) {
   close(sock);
   free(host);
   free(path);
-
   return 0;
 }
