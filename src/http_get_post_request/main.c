@@ -1,5 +1,3 @@
-// src/http_get_post_request/main.c
-
 #define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,11 +14,7 @@
 
 /**
  * @brief Parsea una URL HTTPS en host y path.
- *
- * Asume que `url` comienza con "https://". Separa el host y el path.
- * Ejemplo:
- *   https://ejemplo.com/ruta -> host="ejemplo.com", path="/ruta"
- *   https://ejemplo.com       -> host="ejemplo.com", path="/"
+ *        (Solo soporta "https://host[/path]".)
  */
 static int parse_url(const char *url, char **host, char **path) {
   if (strncmp(url, "https://", 8) != 0) {
@@ -47,33 +41,25 @@ static int parse_url(const char *url, char **host, char **path) {
 }
 
 /**
- * @brief Crea un socket TCP y se conecta a host:port.
- *
- * @param host  Nombre de host o IP.
- * @param port  Puerto como cadena (por ejemplo, "443").
- * @return      Descriptor de socket conectado, o -1 en error.
+ * @brief Crea un socket TCP conectado a host:port.
  */
 static int create_socket(const char *host, const char *port) {
   struct addrinfo hints, *res, *rp;
   int sock = -1;
-
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-
   if (getaddrinfo(host, port, &hints, &res) != 0) {
     perror("getaddrinfo");
     return -1;
   }
-
-  for (rp = res; rp != NULL; rp = rp->ai_next) {
+  for (rp = res; rp; rp = rp->ai_next) {
     sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
     if (sock < 0) continue;
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) == 0) break;
     close(sock);
     sock = -1;
   }
-
   freeaddrinfo(res);
   return sock;
 }
@@ -90,23 +76,19 @@ int main(int argc, char **argv) {
 
   const char *method = argv[1];
   const char *url = argv[2];
-
   if (strcmp(method, "get") != 0 && strcmp(method, "post") != 0) {
     fprintf(stderr, "ERROR: Método no soportado. Solo 'get' o 'post'.\n");
     return 1;
   }
 
   char *host = NULL, *path = NULL;
-  if (!parse_url(url, &host, &path)) {
-    return 1;
-  }
+  if (!parse_url(url, &host, &path)) return 1;
 
-  // Parsear headers y data desde argv
+  // Leer headers y data de argv
   char *headers[MAX_HEADERS];
   int header_count = 0;
   char *data = NULL;
   size_t data_len = 0;
-
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-H") == 0 && i + 1 < argc) {
       if (header_count < MAX_HEADERS) {
@@ -128,8 +110,8 @@ int main(int argc, char **argv) {
 
   SSL_library_init();
   SSL_load_error_strings();
-  const SSL_METHOD *method_ssl = TLS_client_method();
-  if (!method_ssl) {
+  const SSL_METHOD *mtd = TLS_client_method();
+  if (!mtd) {
     fprintf(stderr, "ERROR: TLS_client_method falló\n");
     close(sock);
     free(host);
@@ -137,7 +119,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  SSL_CTX *ctx = SSL_CTX_new(method_ssl);
+  SSL_CTX *ctx = SSL_CTX_new(mtd);
   if (!ctx) {
     ERR_print_errors_fp(stderr);
     close(sock);
@@ -145,9 +127,7 @@ int main(int argc, char **argv) {
     free(path);
     return 1;
   }
-  // Forzar mínimo TLS 1.2
   SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-  // No verificamos certificados en este ejemplo
   SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
   SSL *ssl = SSL_new(ctx);
@@ -160,7 +140,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // SNI: enviar nombre del servidor
+  // SNI
   if (!SSL_set_tlsext_host_name(ssl, host)) {
     ERR_print_errors_fp(stderr);
     SSL_free(ssl);
@@ -182,38 +162,32 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Construir la petición HTTP
+  // Construir petición HTTP
   char request[4096];
-  int offset = 0;
-
+  int off = 0;
   if (strcmp(method, "get") == 0) {
-    offset += snprintf(request + offset, sizeof(request) - offset,
-                       "GET %s HTTP/1.1\r\n"
-                       "Host: %s\r\n", path, host);
+    off += snprintf(request + off, sizeof(request) - off,
+                    "GET %s HTTP/1.1\r\n"
+                    "Host: %s\r\n", path, host);
   } else {
-    offset += snprintf(request + offset, sizeof(request) - offset,
-                       "POST %s HTTP/1.1\r\n"
-                       "Host: %s\r\n", path, host);
+    off += snprintf(request + off, sizeof(request) - off,
+                    "POST %s HTTP/1.1\r\n"
+                    "Host: %s\r\n", path, host);
   }
-
-  // Añadir headers provistos
+  // Agregar headers
   for (int i = 0; i < header_count; i++) {
-    offset += snprintf(request + offset, sizeof(request) - offset,
-                       "%s\r\n", headers[i]);
+    off += snprintf(request + off, sizeof(request) - off,
+                    "%s\r\n", headers[i]);
   }
-
   if (strcmp(method, "post") == 0) {
-    // Siempre añadir Content-Length (0 si no hay data)
-    offset += snprintf(request + offset, sizeof(request) - offset,
-                       "Content-Length: %zu\r\n", data ? data_len : 0);
+    off += snprintf(request + off, sizeof(request) - off,
+                    "Content-Length: %zu\r\n", data ? data_len : 0);
   }
-
-  // Añadir Connection: close y fin de headers
-  offset += snprintf(request + offset, sizeof(request) - offset,
-                     "Connection: close\r\n\r\n");
+  off += snprintf(request + off, sizeof(request) - off,
+                  "Connection: close\r\n\r\n");
 
   // Enviar encabezados
-  if (SSL_write(ssl, request, offset) <= 0) {
+  if (SSL_write(ssl, request, off) <= 0) {
     ERR_print_errors_fp(stderr);
     SSL_shutdown(ssl);
     SSL_free(ssl);
@@ -224,7 +198,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Enviar cuerpo si es POST y hay data
+  // Enviar cuerpo si es POST
   if (strcmp(method, "post") == 0 && data_len > 0) {
     if (SSL_write(ssl, data, data_len) <= 0) {
       ERR_print_errors_fp(stderr);
