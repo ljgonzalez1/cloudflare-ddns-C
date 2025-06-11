@@ -4,13 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "base_inc.h"
+
 #include "meta_array.h"
 
 struct working_environment {
   char *CLOUDFLARE_API_KEY;
   bool PROXIED;
-  size_t MINUTES_BETWEEN_UPDATES;
-  size_t PROPAGATION_DELAY_SECONDS;
+  unsigned int MINUTES_BETWEEN_UPDATES;
+  unsigned int PROPAGATION_DELAY_SECONDS;
   MetaArray DOMAINS;
   MetaArray IP_V4_APIS;
 };

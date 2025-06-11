@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 
+#include "base_inc.h"
+
 struct mata_array {
   void *data;
   size_t length;

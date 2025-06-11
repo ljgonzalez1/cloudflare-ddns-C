@@ -5,11 +5,23 @@ static Env _env;
 const Env *const env = &_env;
 
 static const char *get_cloudflare_api_key(void) {
-  const char *val = getenv("CLOUDFLARE_API_KEY");
+  const char *val = getenv(CLOUDFLARE_API_KEY_ENV_VAR);
   return val ? val : "";
 }
 
+static const bool get_proxied(void) {
+  const char *val = getenv(PROXIED_ENV_VAR);
 
+  if (val == NULL) return false;
+  return strcasecmp(val, "true") == 0;
+}
+
+static const try_convert_to_int() {}
+
+static const unsigned int get_minutes_between_updates(void) {
+  const char *val = getenv(MINUTES_BETWEEN_UPDATES_ENV_VAR);
+  return val == NULL? DEFAULT_MINUTES_BETWEEN_UPDATES : atoi(val);
+}
 
 void env_init(void) {
   _env.CLOUDFLARE_API_KEY = get_cloudflare_api_key();
