@@ -1,28 +1,10 @@
 #include "../include/env.h"
 
+#include "checkers/checkers.h"
+
 static Env _env;
 
 const Env *const env = &_env;
-
-static const bool basic_api_key_check(char *cloudflare_api_key) {
-  bool key_looks_ok = true;
-
-  if (cloudflare_api_key == NULL) {
-    key_looks_ok = false;
-
-  } else if (strlen(cloudflare_api_key) < MINIMUM_CLOUDFLARE_API_KEY_LENGTH) {
-    key_looks_ok = false;
-
-  } else if (strlen(cloudflare_api_key) > MAXIMUM_CLOUDFLARE_API_KEY_LENGTH) {
-    key_looks_ok = false;
-  }
-
-  if (!key_looks_ok) {
-    error_set(ERR_INVALID_ENV_CLOUDFLARE_KEY | );
-  }
-
-  return key_looks_ok;
-}
 
 static const char *get_cloudflare_api_key(void) {
   const char *val = getenv(CLOUDFLARE_API_KEY_ENV_VAR);
@@ -43,6 +25,17 @@ static const unsigned int get_minutes_between_updates(void) {
   return val == NULL? DEFAULT_MINUTES_BETWEEN_UPDATES : atoi(val);
 }
 
+static void set_env_error_if_errors() {
+  if (error_matches_any(
+      ERR_INVALID_ENV_CLOUDFLARE_KEY,
+      ERR_INVALID_ENV_DOMAINS,
+      ERR_INVALID_ENV_PROXIED,
+      ERR_INVALID_ENV_MINUTES_BETWEEN_UPDATES,
+      ERR_INVALID_ENV_PROPAGATION_DELAY_SECONDS,
+      ERR_INVALID_ENV_IP_V4_APIS
+  )) error_set(ERR_INVALID_ENV);
+}
+
 void env_init(void) {
   _env.CLOUDFLARE_API_KEY = get_cloudflare_api_key();
   _env.DOMAINS = get_domains();
@@ -51,10 +44,11 @@ void env_init(void) {
   _env.PROPAGATION_DELAY_SECONDS = get_propagation_delay_seconds();
   _env.IP_V4_APIS = get_ip_v4_apis();
 
-
+  set_env_error_if_errors():
 }
 
 
+// TODO: Check this part. May be using wrong calls
 void env_cleanup(void) {
   for (size_t i = 0; i < _env.DOMAINS.length; i++) {
     free(_env.DOMAINS.data[i]);
