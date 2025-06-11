@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 // Allows to combine multiple error codes into a single integer.
 // ERROR_A or ERROR_B or ERROR_C can be combined using the bitwise OR operator.
@@ -57,19 +58,27 @@ typedef uint32_t ErrorFlags;
 
 extern ErrorFlags g_errors;
 
-static inline void  error_set (CombinedErrorCode e) {
-  g_errors |=  e;
+static inline void error_set(CombinedErrorCode e) {
+  g_errors |= e;
 }
 
-static inline bool  error_has (CombinedErrorCode e) {
+static inline bool error_has(CombinedErrorCode e) {
   return (g_errors & e) != 0;
 }
 
-static inline void  error_clear (CombinedErrorCode e) {
+static inline bool error_has_eny(void) {
+  return g_errors!= ERR_NONE;
+}
+
+bool error_matches_any(CombinedErrorCode first, ...);
+
+bool error_matches_all(CombinedErrorCode first, ...);
+
+static inline void error_clear(CombinedErrorCode e) {
   g_errors &= ~e;
 }
 
-static inline void  error_reset (void) {
+static inline void error_reset(void) {
   g_errors = ERR_NONE;
 }
 

@@ -4,6 +4,26 @@ static Env _env;
 
 const Env *const env = &_env;
 
+static const bool basic_api_key_check(char *cloudflare_api_key) {
+  bool key_looks_ok = true;
+
+  if (cloudflare_api_key == NULL) {
+    key_looks_ok = false;
+
+  } else if (strlen(cloudflare_api_key) < MINIMUM_CLOUDFLARE_API_KEY_LENGTH) {
+    key_looks_ok = false;
+
+  } else if (strlen(cloudflare_api_key) > MAXIMUM_CLOUDFLARE_API_KEY_LENGTH) {
+    key_looks_ok = false;
+  }
+
+  if (!key_looks_ok) {
+    error_set(ERR_INVALID_ENV_CLOUDFLARE_KEY | );
+  }
+
+  return key_looks_ok;
+}
+
 static const char *get_cloudflare_api_key(void) {
   const char *val = getenv(CLOUDFLARE_API_KEY_ENV_VAR);
   return val ? val : "";
@@ -30,6 +50,8 @@ void env_init(void) {
   _env.MINUTES_BETWEEN_UPDATES = get_minutes_between_updates();
   _env.PROPAGATION_DELAY_SECONDS = get_propagation_delay_seconds();
   _env.IP_V4_APIS = get_ip_v4_apis();
+
+
 }
 
 
