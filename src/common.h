@@ -32,7 +32,7 @@
 #define IP_V4_APIS_ENV_VAR "IP_V4_APIS"
 
 // Delimiters and constants
-#define DOMAIN_DELIMITER ","
+#define DOMAIN_DELIMITER ','
 #define MAX_STRING_LENGTH 1024
 #define MAX_ARRAY_SIZE 100
 
